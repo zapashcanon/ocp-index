@@ -14,4 +14,4 @@
 
 (** Looks up a 'dune' file in the dirname of the given file, and attempts to
     extract the name of the (wrapped) library the module belongs to. *)
-val get_libname: string -> string option
+val get_libname : string -> string option

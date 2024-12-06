@@ -16,12 +16,12 @@
     not in Pervasives like base types ([int], [char]...) and exceptions
     ([Match_failure]...) *)
 
-val types: IndexTypes.info list
+val types : IndexTypes.info list
 
-val variants: IndexTypes.info list
+val variants : IndexTypes.info list
 
-val exceptions: IndexTypes.info list
+val exceptions : IndexTypes.info list
 
-val keywords: IndexTypes.info list
+val keywords : IndexTypes.info list
 
-val all: IndexTypes.info list
+val all : IndexTypes.info list

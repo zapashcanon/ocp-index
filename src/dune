@@ -4,8 +4,11 @@
  (libraries cmdliner ocp-index.lib unix))
 
 (rule
-  (targets ocp_index_version.ml)
-  (action (with-stdout-to %{targets} (echo "let version = \"%{version:ocp-index}\""))))
+ (targets ocp_index_version.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (echo "let version = \"%{version:ocp-index}\""))))
 
 (executable
  (public_name ocp-index)
@@ -15,8 +18,11 @@
  (libraries unix ocp-index.lib cmdliner indexOptions))
 
 (rule
-  (targets ocp_grep_version.ml)
-  (action (with-stdout-to %{targets} (echo "let version = \"%{version:ocp-index}\""))))
+ (targets ocp_grep_version.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (echo "let version = \"%{version:ocp-index}\""))))
 
 (executable
  (public_name ocp-grep)
@@ -26,8 +32,11 @@
  (libraries unix ocp-index.lib re re.posix cmdliner))
 
 (rule
-  (targets ocp_browser_version.ml)
-  (action (with-stdout-to %{targets} (echo "let version = \"%{version:ocp-browser}\""))))
+ (targets ocp_browser_version.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (echo "let version = \"%{version:ocp-browser}\""))))
 
 (executable
  (public_name ocp-browser)

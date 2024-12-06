@@ -19,28 +19,37 @@
 type ty = Outcometree.out_sig_item
 
 (** The type of files we get our data from *)
-type orig_file = Cmt of string | Cmti of string | Cmi of string
+type orig_file =
+  | Cmt of string
+  | Cmti of string
+  | Cmi of string
 
 (** Contains the information on a given identifier *)
-type info = { path: string list;
-              orig_path: string list;
-              kind: kind;
-              name: string;
-              ty: ty option;
-              loc_sig: Location.t Lazy.t;
-              loc_impl: Location.t Lazy.t;
-              doc: string option Lazy.t;
-              file: orig_file;
-           (* library: string option *) }
+type info =
+  { path : string list
+  ; orig_path : string list
+  ; kind : kind
+  ; name : string
+  ; ty : ty option
+  ; loc_sig : Location.t Lazy.t
+  ; loc_impl : Location.t Lazy.t
+  ; doc : string option Lazy.t
+  ; file : orig_file (* library: string option *)
+  }
 
 (** The kind of elements that can be stored in the trie *)
 and kind =
-  | Type | Value | Exception
+  | Type
+  | Value
+  | Exception
   | OpenType
-  | Field of info | Variant of info
+  | Field of info
+  | Variant of info
   | Method of info
-  | Module | ModuleType
-  | Class | ClassType
+  | Module
+  | ModuleType
+  | Class
+  | ClassType
   | Keyword
 
 (** Lazy trie structure holding the info on all identifiers *)

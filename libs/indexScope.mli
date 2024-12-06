@@ -15,34 +15,42 @@
 type t
 
 (** The empty scope *)
-val empty: t
+val empty : t
 
 (** The type of gathered information within a scope *)
-type env = Alias of string * string list | Open of string list
+type env =
+  | Alias of string * string list
+  | Open of string list
 
 (** From a directory name, look for a .merlin file and check for [open] flags in
     it *)
-val from_dot_merlin: string -> env list
+val from_dot_merlin : string -> env list
 
 (** Compute the environment from an input channel, at an optional position or at
     EOF *)
-val read: ?line:int -> ?column:int -> in_channel -> t
+val read : ?line:int -> ?column:int -> in_channel -> t
 
 (** Compute the environment from a string *)
-val read_string: string -> t
+val read_string : string -> t
 
-(** Lower-level function for processing on the environment at every token.
-    The position is given in the form [(line, column, length)] *)
-val fold:
-  ('a -> t -> Approx_lexer.token -> (int * int * int) -> 'a) -> 'a ->
-  ?init:env list -> ?stop:(Lexing.position -> bool) -> in_channel
+(** Lower-level function for processing on the environment at every token. The
+    position is given in the form [(line, column, length)] *)
+val fold :
+     ('a -> t -> Approx_lexer.token -> int * int * int -> 'a)
+  -> 'a
+  -> ?init:env list
+  -> ?stop:(Lexing.position -> bool)
+  -> in_channel
   -> 'a
 
 (** The same from a string *)
-val fold_string:
-  ('a -> t -> Approx_lexer.token -> (int * int * int) -> 'a) -> 'a ->
-  ?init:env list -> ?stop:(Lexing.position -> bool) -> string
+val fold_string :
+     ('a -> t -> Approx_lexer.token -> int * int * int -> 'a)
+  -> 'a
+  -> ?init:env list
+  -> ?stop:(Lexing.position -> bool)
+  -> string
   -> 'a
 
 (** Returns the [env] declarations in scope [t], in source file order *)
-val to_list: t -> env list
+val to_list : t -> env list

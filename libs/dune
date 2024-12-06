@@ -4,6 +4,9 @@
  (preprocess
   (action
    (run %{bin:cppo} -V OCAML:%{ocaml_version} %{input-file})))
- (libraries compiler-libs compiler-libs.common ocp-indent.lexer
-   ocp-indent.utils)
+ (libraries
+  compiler-libs
+  compiler-libs.common
+  ocp-indent.lexer
+  ocp-indent.utils)
  (wrapped false))
