@@ -21,8 +21,6 @@ val timer: unit -> unit -> float
 (** Similar to List.fold_left but with 1 step look-ahead *)
 val foldl_next: ('acc -> 'a -> 'a option -> 'acc) -> 'acc -> 'a list -> 'acc
 
-val string_split: char -> string -> string list
-
 type key = char list
 val dot: char
 val dots: string
@@ -55,12 +53,6 @@ val find_build_dir: string -> string option
 
 (** Shorten [file] by making it relative to current [path] (default cwd) *)
 val make_relative: ?path:string -> string -> string
-
-(** [String.capitalize_ascii], but compatibile across OCaml versions *)
-val capitalize: string -> string
-
-(** [String.lowercase_ascii], but compatibile across OCaml versions *)
-val lowercase: string -> string
 
 (** Returns whatever is after the last ['.'] in the string, [""] otherwise. *)
 val file_extension: string -> string

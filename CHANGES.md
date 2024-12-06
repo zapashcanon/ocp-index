@@ -1,3 +1,7 @@
+### unrelease
+
+* Explicitely drop support for OCaml < 4.14
+
 ### 1.3.6
 
 * Support for OCaml 5.2

@@ -42,7 +42,7 @@ module Stream = struct
           | tok -> tok; }
     in
     match Nstream.next stream.nstream with
-    | Some ({Nstream.token; region}, nstream) ->
+    | Some ({Nstream.token; region; _}, nstream) ->
         if stream.stop (Pos.Region.snd region)
         then EOF, shift stream EOF region
         else token, shift {stream with nstream} token region
@@ -276,11 +276,11 @@ let from_dot_merlin dir =
     let ic = open_in (Filename.concat dir ".merlin") in
     try
       let rec scan ic =
-        match IndexMisc.string_split ' ' (input_line ic) with
+        match String.split_on_char ' ' (input_line ic) with
         | "FLG" :: flags ->
             let rec aux = function
               | "-open" :: modname :: r ->
-                  Open (IndexMisc.string_split '.' modname) :: aux r
+                  Open (String.split_on_char '.' modname) :: aux r
               | _ :: r -> aux r
               | [] -> []
             in

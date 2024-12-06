@@ -83,7 +83,7 @@ let overriding_merge t1 t2 =
            (IndexTrie.unset t path) values
        in
        if List.exists (function
-           | {kind=Module|ModuleType|Class|ClassType} -> true
+         | {kind=Module|ModuleType|Class|ClassType; _} -> true
            | _ -> false)
            values
        then
@@ -154,34 +154,19 @@ let associate_comment ?(after_only=false) comments loc nextloc =
 let ty_of_sig_item =
   let open Printtyp in
   function
-#if OCAML_VERSION < (4,08,0)
-  | Types.Sig_value(id, decl) -> tree_of_value_description id decl
-  | Types.Sig_type(id, decl, rs) -> tree_of_type_declaration id decl rs
-  | Types.Sig_typext(id, decl, es) -> tree_of_extension_constructor id decl es
-  | Types.Sig_module(id, { Types.md_type }, rs) -> tree_of_module id md_type rs
-  | Types.Sig_modtype(id, decl) -> tree_of_modtype_declaration id decl
-  | Types.Sig_class(id, decl, rs) -> tree_of_class_declaration id decl rs
-  | Types.Sig_class_type(id, decl, rs) -> tree_of_cltype_declaration id decl rs
-#else
   | Types.Sig_value(id, decl, _) -> tree_of_value_description id decl
   | Types.Sig_type(id, decl, rs, _) -> tree_of_type_declaration id decl rs
   | Types.Sig_typext(id, decl, es, _) -> tree_of_extension_constructor id decl es
-  | Types.Sig_module(id, _, { Types.md_type }, rs, _) -> tree_of_module id md_type rs
+  | Types.Sig_module(id, _, { Types.md_type; _ }, rs, _) -> tree_of_module id md_type rs
   | Types.Sig_modtype(id, decl, _) -> tree_of_modtype_declaration id decl
   | Types.Sig_class(id, decl, rs, _) -> tree_of_class_declaration id decl rs
   | Types.Sig_class_type(id, decl, rs, _) -> tree_of_cltype_declaration id decl rs
-#endif
 
 
 (* -- Qualifying types -- *)
 
-#if OCAML_VERSION >= (4,08,0)
   let n s = {Outcometree.printed_name = s}
   let nn {Outcometree.printed_name} = printed_name
-#else
-  let n s = s
-  let nn s = s
-#endif
 
 (* The types may contain unqualified identifiers.
    We need to do some (lazy) lookup in the trie to qualify them, so that
@@ -250,17 +235,10 @@ let qualify_ty (parents:parents) ty =
     | Otyp_stuff str -> Otyp_stuff str
     | Otyp_sum (strtylisttyoptlist) ->
         Otyp_sum
-#if OCAML_VERSION >= (4,14,0)
           (List.map (fun {ocstr_name = str; ocstr_args = tylist; ocstr_return_type = tyopt} ->
                {ocstr_name = str; ocstr_args = List.map aux tylist;
                 ocstr_return_type = match tyopt with Some ty -> Some (aux ty)
                                                    | None -> None})
-#else
-          (List.map (fun (str,tylist,tyopt) ->
-               str, List.map aux tylist,
-               match tyopt with Some ty -> Some (aux ty)
-                              | None -> None)
-#endif
               strtylisttyoptlist)
     | Otyp_tuple (tylist) -> Otyp_tuple (List.map aux tylist)
     | Otyp_var (bl, str) -> Otyp_var (bl, str)
@@ -271,17 +249,10 @@ let qualify_ty (parents:parents) ty =
         Otyp_variant (bl, var, bl2, strlistopt)
 #endif
     | Otyp_poly (str, ty) -> Otyp_poly (str, aux ty)
-#if OCAML_VERSION >= (4, 13, 0)
     | Otyp_module (str, fl) ->
         Otyp_module (str, List.map (fun (s, ty) -> (s, aux ty)) fl)
-#else
-    | Otyp_module (str, strl, tylist) ->
-        Otyp_module (str, strl, List.map aux tylist)
-#endif
     | Otyp_open -> Otyp_open
-#if OCAML_VERSION >= (4,03,0)
     | Otyp_attribute (ty,attr) -> Otyp_attribute (aux ty, attr)
-#endif
   in
   aux ty
 
@@ -296,11 +267,7 @@ let qualify_ty_in_sig_item (parents:parents) =
         otype_cstrs = List.map (fun (ty1,ty2) -> qual ty1, qual ty2)
             out_type_decl.otype_cstrs }, rc)
 
-#if OCAML_VERSION >= (4,03,0)
   | Osig_value o -> Osig_value {o with oval_type = qual o.oval_type}
-#else
-  | Osig_value (str, ty, str2) -> Osig_value (str, qual ty, str2)
-#endif
 
   | Osig_typext (constr, es) ->
       Osig_typext ({ constr with
@@ -317,7 +284,7 @@ let with_path_loc ?srcpath loc =
       let path =
         (* Some magic to get the real source when using jbuilder or
            ocamlbuild *)
-        let lpath = string_split Filename.dir_sep.[0] path in
+        let lpath = String.split_on_char Filename.dir_sep.[0] path in
         let rec aux = function
           | "_build" :: "default" :: r -> r
           | "_build" :: "install" :: _ -> []
@@ -337,15 +304,6 @@ let with_path_loc ?srcpath loc =
                 loc_end = with_path_pos loc.loc_end }
 
 let loc_of_sig_item = function
-#if OCAML_VERSION < (4,08,0)
-  | Types.Sig_value (_,descr) -> descr.Types.val_loc
-  | Types.Sig_type (_,descr,_) -> descr.Types.type_loc
-  | Types.Sig_typext (_,descr,_) -> descr.Types.ext_loc
-  | Types.Sig_module (_,descr,_) -> descr.Types.md_loc
-  | Types.Sig_modtype (_,descr) -> descr.Types.mtd_loc
-  | Types.Sig_class (_,descr,_) -> descr.Types.cty_loc
-  | Types.Sig_class_type (_,descr,_) -> descr.Types.clty_loc
-#else
   | Types.Sig_value (_,descr,_) -> descr.Types.val_loc
   | Types.Sig_type (_,descr,_,_) -> descr.Types.type_loc
   | Types.Sig_typext (_,descr,_,_) -> descr.Types.ext_loc
@@ -353,18 +311,8 @@ let loc_of_sig_item = function
   | Types.Sig_modtype (_,descr,_) -> descr.Types.mtd_loc
   | Types.Sig_class (_,descr,_,_) -> descr.Types.cty_loc
   | Types.Sig_class_type (_,descr,_,_) -> descr.Types.clty_loc
-#endif
 
 let id_of_sig_item = function
-#if OCAML_VERSION < (4,08,0)
-  | Types.Sig_value (id,_)
-  | Types.Sig_type (id,_,_)
-  | Types.Sig_typext (id,_,_)
-  | Types.Sig_module (id,_,_)
-  | Types.Sig_modtype (id,_)
-  | Types.Sig_class (id,_,_)
-  | Types.Sig_class_type (id,_,_)
-#else
   | Types.Sig_value (id,_,_)
   | Types.Sig_type (id,_,_,_)
   | Types.Sig_typext (id,_,_,_)
@@ -372,17 +320,12 @@ let id_of_sig_item = function
   | Types.Sig_modtype (id,_,_)
   | Types.Sig_class (id,_,_,_)
   | Types.Sig_class_type (id,_,_,_)
-#endif
     -> id
 
 let kind_of_sig_item = function
   | Types.Sig_value _ -> Value
   | Types.Sig_type _ -> Type
-#if OCAML_VERSION < (4,08,0)
-  | Types.Sig_typext (_, _, Types.Text_exception) -> Exception
-#else
   | Types.Sig_typext (_, _, Types.Text_exception, _) -> Exception
-#endif
   | Types.Sig_typext _ -> OpenType
   | Types.Sig_module _ -> Module
   | Types.Sig_modtype _ -> ModuleType
@@ -390,15 +333,6 @@ let kind_of_sig_item = function
   | Types.Sig_class_type _ -> ClassType
 
 let attrs_of_sig_item = function
-#if OCAML_VERSION < (4,08,0)
-  | Types.Sig_value (_,descr) -> descr.Types.val_attributes
-  | Types.Sig_type (_,descr,_) -> descr.Types.type_attributes
-  | Types.Sig_typext (_,descr,_) -> descr.Types.ext_attributes
-  | Types.Sig_module (_,descr,_) -> descr.Types.md_attributes
-  | Types.Sig_modtype (_,descr) -> descr.Types.mtd_attributes
-  | Types.Sig_class (_,descr,_) -> descr.Types.cty_attributes
-  | Types.Sig_class_type (_,descr,_) -> descr.Types.clty_attributes
-#else
   | Types.Sig_value (_,descr,_) -> descr.Types.val_attributes
   | Types.Sig_type (_,descr,_,_) -> descr.Types.type_attributes
   | Types.Sig_typext (_,descr,_,_) -> descr.Types.ext_attributes
@@ -406,44 +340,21 @@ let attrs_of_sig_item = function
   | Types.Sig_modtype (_,descr,_) -> descr.Types.mtd_attributes
   | Types.Sig_class (_,descr,_,_) -> descr.Types.cty_attributes
   | Types.Sig_class_type (_,descr,_,_) -> descr.Types.clty_attributes
-#endif
 
 let doc_of_attributes attrs =
   let doc_loc_id = "ocaml.doc" in (* not exported ! *)
   let open Parsetree in
   try
-#if OCAML_VERSION >= (4,08,0)
-  match List.find (fun {attr_name = {Location.txt}} -> txt = doc_loc_id) attrs with
-  | {attr_payload = PStr [{pstr_desc = Pstr_eval ({pexp_desc},_)}]} ->
-#else
-  match List.find (fun ({Location.txt},_) -> txt = doc_loc_id) attrs with
-  | _, PStr [{pstr_desc = Pstr_eval ({pexp_desc},_)}] ->
-#endif
+  match List.find (fun {attr_name = {Location.txt; _}; _} -> txt = doc_loc_id) attrs with
+  | {attr_payload = PStr [{pstr_desc = Pstr_eval ({pexp_desc; _},_); _}]; _} ->
       (match pexp_desc with
-#if OCAML_VERSION >= (4,11,0)
        | Pexp_constant (Pconst_string (s,_,_)) -> Some s
-#elif OCAML_VERSION >= (4,03,0)
-       | Pexp_constant (Pconst_string (s,_)) -> Some s
-#else
-       | Pexp_constant (Const_string (s,_)) -> Some s
-#endif
        | _ -> debug "Unexpected ocaml.doc docstring format"; None)
   | _ -> None
   with Not_found -> None
 
-#if OCAML_VERSION >= (4,14,0)
 let make_type_expr ~desc ~level ~scope ~id =
   Types.create_expr desc ~level ~scope ~id
-#elif OCAML_VERSION >= (4,13,0)
-let make_type_expr ~desc ~level ~scope ~id =
-  Types.Private_type_expr.create desc ~level ~scope ~id
-#elif OCAML_VERSION >= (4,07,0)
-let make_type_expr ~desc ~level ~scope ~id =
-  {Types.desc; level; scope; id}
-#elif OCAML_VERSION >= (4,03,0)
-let make_type_expr ~desc ~level ~id =
-  {Types.desc; level; id}
-#endif
 
 let trie_of_type_decl ?comments info ty_decl =
   match ty_decl.Types.type_kind with
@@ -455,28 +366,16 @@ let trie_of_type_decl ?comments info ty_decl =
   | Types.Type_open -> [], comments
   | Types.Type_record (fields,_repr) ->
       List.map
-        (fun { Types.ld_id; ld_type; ld_attributes } ->
-#if OCAML_VERSION >= (4,14,0)
+        (fun { Types.ld_id; ld_type; ld_attributes; _ } ->
           let ty = Printtyp.tree_of_typexp Printtyp.Type ld_type in
-#else
-          let ty = Printtyp.tree_of_typexp false ld_type in
-#endif
           let ty =
             Outcometree.Osig_type (Outcometree.({
                 otype_name    = "";
                 otype_params  = [];
                 otype_type    = ty;
                 otype_private = Asttypes.Public;
-  #if OCAML_VERSION >= (4,03,0)
-    #if OCAML_VERSION >= (4,10,0)
                 otype_immediate = Type_immediacy.Unknown;
-    #else
-                otype_immediate = false;
-    #endif
-    #if OCAML_VERSION >= (4,04,0)
                 otype_unboxed = false;
-    #endif
-  #endif
                 otype_cstrs   = []; }), Outcometree.Orec_not)
           in
           let doc = doc_of_attributes ld_attributes in
@@ -495,77 +394,36 @@ let trie_of_type_decl ?comments info ty_decl =
           } ())
         fields,
       comments
-#if OCAML_VERSION >= (4, 13, 0)
   | Types.Type_variant (variants, _rep) ->
-#else
-  | Types.Type_variant variants ->
-#endif
       List.map
-        (fun { Types.cd_id; cd_args; cd_attributes } ->
+        (fun { Types.cd_id; cd_args; cd_attributes; _ } ->
           let ty =
             let params = match cd_args with
-#if OCAML_VERSION >= (4,03,0)
               | Cstr_tuple [] -> Outcometree.Otyp_sum []
               | Cstr_tuple (param::_ as l) ->
-#if OCAML_VERSION >= (4,14,0)
                      Printtyp.tree_of_typexp Printtyp.Type
-#else
-                     Printtyp.tree_of_typexp false
-#endif
                        (make_type_expr
                           ~desc:(Types.Ttuple l)
-#if OCAML_VERSION >= (4,14,0)
                           ~level:(Types.get_level param)
-#else
-                          ~level:param.Types.level
-#endif
-#if OCAML_VERSION >= (4,08,0)
                           ~scope:0
-#elif OCAML_VERSION >= (4,07,0)
-                          ~scope:None
-#endif
-#if OCAML_VERSION >= (4,14,0)
                           ~id:(Types.get_id param))
-#else
-                          ~id:param.Types.id)
-#endif
               | Cstr_record params ->
                   Outcometree.Otyp_record (
                     List.map
                       (fun l ->
                          (Ident.name l.Types.ld_id,
                           l.ld_mutable = Mutable,
-#if OCAML_VERSION >= (4,14,0)
                           Printtyp.tree_of_typexp Printtyp.Type l.ld_type)
-#else
-                          Printtyp.tree_of_typexp false l.ld_type)
-#endif
                       )
                       params)
-#else
-              | [] -> Outcometree.Otyp_sum []
-              | param::_ as l ->
-                     Printtyp.tree_of_typexp false
-                       { Types. desc = Types.Ttuple l;
-                         level = param.Types.level;
-                         id = param.Types.id }
-#endif
             in
             Outcometree.Osig_type (Outcometree.({
                 otype_name    = "";
                 otype_params  = [];
                 otype_type    = params;
                 otype_private = Asttypes.Public;
-  #if OCAML_VERSION >= (4,03,0)
-    #if OCAML_VERSION >= (4,10,0)
                 otype_immediate = Type_immediacy.Unknown;
-    #else
-                otype_immediate = false;
-    #endif
-    #if OCAML_VERSION >= (4,04,0)
                 otype_unboxed = false;
-    #endif
-  #endif
                 otype_cstrs   = []; }), Outcometree.Orec_not)
           in
           let doc = doc_of_attributes cd_attributes in
@@ -612,11 +470,7 @@ let lookup_parents (parents:parents) path sig_path =
 
 let rec path_of_ocaml = function
   | Path.Pident id -> [Ident.name id]
-#if OCAML_VERSION >= (4,08,0)
   | Path.Pdot (path, s) -> path_of_ocaml path @ [s]
-#else
-  | Path.Pdot (path, s, _) -> path_of_ocaml path @ [s]
-#endif
   | Path.Papply (p1, _p2) -> path_of_ocaml p1
 #if OCAML_VERSION >= (5,1,0)
   | Pextra_ty (p, _extra_ty) -> path_of_ocaml p
@@ -663,64 +517,31 @@ let rec trie_of_sig_item
   in
   let siblings, comments = (* read fields / variants ... *)
     match sig_item with
-#if OCAML_VERSION >= (4,08,0)
     | Types.Sig_type (_id,descr,_is_rec, _) ->
-#else
-    | Types.Sig_type (_id,descr,_is_rec) ->
-#endif
         trie_of_type_decl ?comments info descr
     | _ -> [], comments
   in
   (* ignore functor arguments *)
   let rec sig_item_contents = function
     | Types.Sig_module
-#if OCAML_VERSION >= (4,08,0)
         (id, presence,
-  #if OCAML_VERSION >= (4,10,0)
-         ({Types.md_type = Types.Mty_functor (_,s)} as funct),
-  #else
-         ({Types.md_type = Types.Mty_functor (_,_,s)} as funct),
-  #endif
+         ({Types.md_type = Types.Mty_functor (_,s); _} as funct),
          is_rec, visibility)
       ->
         let funct = {funct with Types.md_type = s} in
         sig_item_contents (Types.Sig_module (id, presence, funct, is_rec, visibility))
-#else
-        (id,
-         ({Types.md_type = Types.Mty_functor (_,_,s)} as funct),
-         is_rec)
-      ->
-        let funct = {funct with Types.md_type = s} in
-        sig_item_contents (Types.Sig_module (id, funct, is_rec))
-#endif
     | Types.Sig_modtype
-#if OCAML_VERSION >= (4,08,0)
-  #if OCAML_VERSION >= (4,10,0)
-      (id, ({Types.mtd_type = Some (Types.Mty_functor (_,s))} as funct), visibility)
-  #else
-      (id, ({Types.mtd_type = Some (Types.Mty_functor (_,_,s))} as funct), visibility)
-  #endif
+      (id, ({Types.mtd_type = Some (Types.Mty_functor (_,s)); _} as funct), visibility)
       ->
         let funct = {funct with Types.mtd_type = Some s} in
         sig_item_contents (Types.Sig_modtype (id, funct, visibility))
-#else
-      (id, ({Types.mtd_type = Some (Types.Mty_functor (_,_,s))} as funct))
-      ->
-        let funct = {funct with Types.mtd_type = Some s} in
-        sig_item_contents (Types.Sig_modtype (id, funct))
-#endif
     | si -> si
   in
   (* read module / class contents *)
   let children, comments =
     match sig_item_contents sig_item with
-  #if OCAML_VERSION >= (4,08,0)
-    | Types.Sig_module (id,_,{ Types.md_type = Types.Mty_signature sign },_,_)
-    | Types.Sig_modtype (id,{ Types.mtd_type = Some (Types.Mty_signature sign) },_)
-  #else
-    | Types.Sig_module (id,{ Types.md_type = Types.Mty_signature sign },_)
-    | Types.Sig_modtype (id,{ Types.mtd_type = Some (Types.Mty_signature sign) })
-  #endif
+    | Types.Sig_module (id,_,{ Types.md_type = Types.Mty_signature sign ; _},_,_)
+    | Types.Sig_modtype (id,{ Types.mtd_type = Some (Types.Mty_signature sign); _ },_)
       ->
         let path = path @ [Ident.name id] in
         let children_comments = lazy (
@@ -742,32 +563,19 @@ let rec trie_of_sig_item
         children, comments
     | Types.Sig_module (
         _,
-  #if OCAML_VERSION >= (4,08,0)
         _,
-  #endif
         { Types.md_type =
             Types.Mty_ident sig_ident
-  #if OCAML_VERSION >= (4,04,0) && OCAML_VERSION < (4,08,0)
-        | Types.Mty_alias (_, sig_ident)
-  #else
         | Types.Mty_alias sig_ident
-  #endif
+  ; _
         },_
-  #if OCAML_VERSION >= (4,08,0)
       ,_
-  #endif
     )
   | Types.Sig_modtype (_,{ Types.mtd_type =
                                Some ( Types.Mty_ident sig_ident
-  #if OCAML_VERSION >= (4,04,0) && OCAML_VERSION < (4,08,0)
-                                    | Types.Mty_alias (_, sig_ident)
-  #else
                                     | Types.Mty_alias sig_ident
-  #endif
-                                    ) }
-  #if OCAML_VERSION >= (4,08,0)
+                               ); _ }
         ,_
-  #endif
     ) ->
         let sig_path = path_of_ocaml sig_ident in
         let children = lazy (
@@ -776,11 +584,11 @@ let rec trie_of_sig_item
           let canonical () = match doc with
             | lazy (Some d) ->
                 let rec aux = function
-                  | "@canonical"::path::_ -> Some (IndexMisc.string_split '.' path)
+                  | "@canonical"::path::_ -> Some (String.split_on_char '.' path)
                   | _ :: r -> aux r
                   | [] -> None
                 in
-                aux (IndexMisc.string_split ' ' d)
+                aux (String.split_on_char ' ' d)
             | _ -> None
           in
           let m = lazy (
@@ -794,13 +602,8 @@ let rec trie_of_sig_item
           IndexTrie.graft_lazy IndexTrie.empty [] m
         ) in
         children, comments
-  #if OCAML_VERSION >= (4,08,0)
-    | Types.Sig_class (id,{Types.cty_type=cty},_,_)
-    | Types.Sig_class_type (id,{Types.clty_type=cty},_,_)
-  #else
-    | Types.Sig_class (id,{Types.cty_type=cty},_)
-    | Types.Sig_class_type (id,{Types.clty_type=cty},_)
-  #endif
+    | Types.Sig_class (id,{Types.cty_type=cty; _},_,_)
+    | Types.Sig_class_type (id,{Types.clty_type=cty; _},_,_)
       ->
         let rec get_clsig = function
           | Types.Cty_constr (_,_,cty) | Types.Cty_arrow (_,_,cty) ->
@@ -814,29 +617,16 @@ let rec trie_of_sig_item
         in
         lazy (List.fold_left (fun t (lbl,_,ty_expr) ->
             if lbl = "*dummy method*" then t else
-#if OCAML_VERSION >= (4,14,0)
               let () = Printtyp.prepare_for_printing [ty_expr] in
               let ty = Printtyp.tree_of_typexp Printtyp.Type ty_expr in
-#else
-              let () = Printtyp.reset_and_mark_loops ty_expr in
-              let ty = Printtyp.tree_of_typexp false ty_expr in
-#endif
               let ty =
                 Outcometree.Osig_type (Outcometree.({
                     otype_name    = "";
                     otype_params  = [];
                     otype_type    = ty;
                     otype_private = Asttypes.Public;
-  #if OCAML_VERSION >= (4,03,0)
-    #if OCAML_VERSION >= (4,10,0)
                     otype_immediate = Type_immediacy.Unknown;
-    #else
-                    otype_immediate = false;
-    #endif
-    #if OCAML_VERSION >= (4,04,0)
                     otype_unboxed = false;
-    #endif
-  #endif
                     otype_cstrs   = []; }), Outcometree.Orec_not)
               in
               IndexTrie.add t (string_to_key lbl)
@@ -868,7 +658,7 @@ let rec trie_of_sig_item
 
 (* These four functions go through the typedtree to extract includes *)
 let rec lookup_trie_of_module_expr parents t path = function
-  | Typedtree.Tmod_ident (incpath,{ Location.txt = _lid}) ->
+  | Typedtree.Tmod_ident (incpath,{ Location.txt = _lid; _}) ->
       let incpath = path_of_ocaml incpath in
       debug "Including %s impl at %s\n" (modpath_to_string incpath) (modpath_to_string path);
       let parents = (path, lazy t) :: parents in
@@ -877,13 +667,9 @@ let rec lookup_trie_of_module_expr parents t path = function
   | Typedtree.Tmod_constraint (e,_,_,_)
   (* | Typedtree.Tmod_apply (e,_,_) *) ->
       lookup_trie_of_module_expr parents t path e.mod_desc
-#if OCAML_VERSION >= (4,10,0)
-  | Typedtree.Tmod_apply ({ mod_desc = Typedtree.Tmod_functor(Typedtree.Named (Some id, _, _),f) },
-#else
-  | Typedtree.Tmod_apply ({ mod_desc = Typedtree.Tmod_functor(id,_,_,f) },
-#endif
+  | Typedtree.Tmod_apply ({ mod_desc = Typedtree.Tmod_functor(Typedtree.Named (Some id, _, _),f); _ },
                           { mod_desc = Typedtree.Tmod_ident (arg,_)
-                                     | Typedtree.Tmod_constraint ({mod_desc = Typedtree.Tmod_ident (arg,_)},_,_,_)  },_) ->
+                                     | Typedtree.Tmod_constraint ({mod_desc = Typedtree.Tmod_ident (arg,_); _},_,_,_); _  },_) ->
       let id_name = Ident.name id in
       let t = lookup_trie_of_module_expr parents t path f.Typedtree.mod_desc in
       debug "Grafting %s at %s\n" id_name (modpath_to_string (path_of_ocaml arg));
@@ -898,18 +684,12 @@ let rec extract_includes_from_submodule_sig parents t path name = function
           (IndexTrie.sub t (modpath_to_key [name])) path sign
       ) in
       IndexTrie.graft_lazy t (modpath_to_key [name]) sub_includes
-#if OCAML_VERSION >= (4,10,0)
   | Typedtree.Tmty_functor (_,e)
-#else
-  | Typedtree.Tmty_functor (_,_,_,e)
-#endif
   | Typedtree.Tmty_with (e,_) ->
       extract_includes_from_submodule_sig parents t path name e.Typedtree.mty_desc
   | _ -> t
 and extract_includes_from_submodule_sig_opt parents t path id mty =
-#if OCAML_VERSION >= (4,10,0)
   match id with None -> t | Some id ->
-#endif
     extract_includes_from_submodule_sig parents t path (Ident.name id) mty
 and get_includes_impl parents t path ttree_struct =
   let rec extract_submodule_impl t name = function
@@ -921,13 +701,9 @@ and get_includes_impl parents t path ttree_struct =
         ) in
         IndexTrie.graft_lazy t (modpath_to_key [name]) sub_includes
     (* | Typedtree.Tmod_functor (arg_id,_,arg_t,e) *)
-#if OCAML_VERSION >= (4,10,0)
-    | Typedtree.Tmod_apply ({ mod_desc = Typedtree.Tmod_functor(Typedtree.Named (Some id, _, _),f) },
-#else
-    | Typedtree.Tmod_apply ({ mod_desc = Typedtree.Tmod_functor(id,_,_,f) },
-#endif
+    | Typedtree.Tmod_apply ({ mod_desc = Typedtree.Tmod_functor(Typedtree.Named (Some id, _, _),f); _ },
                             { mod_desc = Typedtree.Tmod_ident (arg,_)
-                                       | Typedtree.Tmod_constraint ({mod_desc = Typedtree.Tmod_ident (arg,_)},_,_,_)  },_) ->
+                                       | Typedtree.Tmod_constraint ({mod_desc = Typedtree.Tmod_ident (arg,_); _},_,_,_); _  },_) ->
         let id_name = Ident.name id in
         debug "Grafting %s at %s\n" id_name (modpath_to_string (path_of_ocaml arg));
         let functor_arg = lazy (
@@ -937,52 +713,36 @@ and get_includes_impl parents t path ttree_struct =
         extract_submodule_impl
           (IndexTrie.graft_lazy t (modpath_to_key [id_name]) functor_arg)
           name f.Typedtree.mod_desc
-#if OCAML_VERSION >= (4,10,0)
     | Typedtree.Tmod_functor (_,e)
-#else
-    | Typedtree.Tmod_functor (_,_,_,e)
-#endif
     | Typedtree.Tmod_constraint (e,_,_,_) ->
         extract_submodule_impl t name e.Typedtree.mod_desc
     | _ -> t
   in
   let extract_submodule_impl_opt t id mty =
-#if OCAML_VERSION >= (4,10,0)
       match id with None -> t | Some id ->
-#endif
         extract_submodule_impl t (Ident.name id) mty
   in
   List.fold_left (fun t struc_item ->
       match struc_item.Typedtree.str_desc with
-#if OCAML_VERSION >= (4,08,0)
       | Typedtree.Tstr_include
-          { Typedtree.incl_mod = { Typedtree.mod_desc = e }} ->
-#else
-      | Typedtree.Tstr_include
-          { Typedtree.incl_mod = { Typedtree.mod_desc = e }} ->
-#endif
+          { Typedtree.incl_mod = { Typedtree.mod_desc = e; _ }; _} ->
           lookup_trie_of_module_expr parents t path e
-#if OCAML_VERSION >= (4,08,0)
       | Typedtree.Tstr_open
-          Typedtree.{ open_expr = { mod_desc = Tmod_ident (p, _loc) } }
+          Typedtree.{ open_expr = { mod_desc = Tmod_ident (p, _loc); _ }; _ }
           (* TODO: handle the other new open cases *)
-#else
-      | Typedtree.Tstr_open
-          { Typedtree.open_path = p }
-#endif
         ->
           let sub = lookup_parents ((path, lazy t) :: parents) path (path_of_ocaml p) in
           overriding_merge t sub
       | Typedtree.Tstr_module
-          { Typedtree.mb_id; mb_expr = { Typedtree.mod_desc } } ->
+          { Typedtree.mb_id; mb_expr = { Typedtree.mod_desc; _ }; _ } ->
           extract_submodule_impl_opt t mb_id mod_desc
       | Typedtree.Tstr_recmodule l ->
           List.fold_left
-            (fun t { Typedtree.mb_id; mb_expr = { Typedtree.mod_desc } } ->
+            (fun t { Typedtree.mb_id; mb_expr = { Typedtree.mod_desc; _ }; _ } ->
                extract_submodule_impl_opt t mb_id mod_desc)
             t l
       | Typedtree.Tstr_modtype
-          { Typedtree.mtd_id = id; mtd_type = Some { Typedtree.mty_desc = e } } ->
+          { Typedtree.mtd_id = id; mtd_type = Some { Typedtree.mty_desc = e; _ }; _ } ->
           extract_includes_from_submodule_sig parents t path (Ident.name id) e
       | _ -> t)
     t ttree_struct.Typedtree.str_items
@@ -1004,19 +764,19 @@ and get_includes_sig parents t path ttree_sig =
   List.fold_left (fun t sig_item ->
       match sig_item.Typedtree.sig_desc with
       | Typedtree.Tsig_include
-          { Typedtree.incl_mod = { Typedtree.mty_desc = e }} ->
+          { Typedtree.incl_mod = { Typedtree.mty_desc = e ; _ }; _} ->
           extract_includes t e
       | Typedtree.Tsig_module
-          { Typedtree.md_id ; md_type = { Typedtree.mty_desc } } ->
+          { Typedtree.md_id ; md_type = { Typedtree.mty_desc ; _ }; _ } ->
           extract_includes_from_submodule_sig_opt parents t path
             md_id mty_desc
       | Typedtree.Tsig_modtype
-          { Typedtree.mtd_id = id; mtd_type = Some { Typedtree.mty_desc } } ->
+          { Typedtree.mtd_id = id; mtd_type = Some { Typedtree.mty_desc; _ }; _ } ->
           extract_includes_from_submodule_sig parents t path
             (Ident.name id) mty_desc
       | Typedtree.Tsig_recmodule l ->
           List.fold_left
-            (fun t { Typedtree.md_id; md_type = { Typedtree.mty_desc } } ->
+            (fun t { Typedtree.md_id; md_type = { Typedtree.mty_desc; _ }; _ } ->
                extract_includes_from_submodule_sig_opt parents t path
                  md_id mty_desc)
             t l
@@ -1313,8 +1073,8 @@ let load_files ~qualify t dirfiles =
     try
       let i = String.rindex file '.' in
       let len = String.length file in
-      let modul = capitalize (String.sub file 0 i) in
-      let ext = lowercase (String.sub file (i+1) (len-i-1)) in
+      let modul = String.capitalize_ascii (String.sub file 0 i) in
+      let ext = String.lowercase_ascii (String.sub file (i+1) (len-i-1)) in
       modul, ext
     with Not_found -> file, ""
   in
@@ -1378,11 +1138,7 @@ let load ~qualify paths =
   let t = load_dirs ~qualify t paths in
   debug "Modules directory loaded in %.3fs (%d files in %d directories)...\n"
     (chrono()) !debug_file_counter !debug_dir_counter;
-#if OCAML_VERSION >= (4,07,0)
   open_module ~cleanup_path:true t ["Stdlib"]
-#else
-  open_module ~cleanup_path:true t ["Pervasives"]
-#endif
 
 let fully_open_module ?(cleanup_path=false) ~qualify t path =
   let base_path = match path with

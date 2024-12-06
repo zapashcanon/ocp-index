@@ -132,11 +132,7 @@ module IndexFormat = struct
     | Otyp_sum [] ->
         Format.pp_print_char fmt '-'
     | Otyp_sum constrs ->
-#if OCAML_VERSION >= (4,14,0)
         let print_variant fmt {Outcometree.ocstr_name = name; ocstr_args = tyl; ocstr_return_type = ret_type_opt} =
-#else
-        let print_variant fmt (name, tyl, ret_type_opt) =
-#endif
           match ret_type_opt with
           | None ->
               if tyl = [] then Format.pp_print_string fmt name
@@ -172,9 +168,9 @@ module IndexFormat = struct
     | Osig_class (_,_,_,ctyp,_)
     | Osig_class_type (_,_,_,ctyp,_) ->
         !Oprint.out_class_type fmt ctyp
-    | Osig_typext ({ oext_args = [] }, _) ->
+    | Osig_typext ({ oext_args = []; _ }, _) ->
         Format.pp_print_char fmt '-'
-    | Osig_typext ({ oext_args }, _) ->
+    | Osig_typext ({ oext_args; _ }, _) ->
         list ~paren:true
           !Oprint.out_type
           (fun fmt () ->
@@ -184,24 +180,12 @@ module IndexFormat = struct
     | Osig_modtype (_,mtyp)
     | Osig_module (_,mtyp,_) ->
         !Oprint.out_module_type fmt mtyp
-#if OCAML_VERSION >= (4,03,0)
-    | Osig_type ({ otype_type },_) ->
+    | Osig_type ({ otype_type; _ },_) ->
         tydecl fmt otype_type
-    | Osig_value {oval_type} ->
+    | Osig_value {oval_type; _} ->
         !Oprint.out_type fmt oval_type
     | Osig_ellipsis ->
         Format.fprintf fmt "..."
-#elif OCAML_VERSION >= (4,02,0)
-    | Osig_type ({ otype_type },_) ->
-        tydecl fmt otype_type
-    | Osig_value (_,ty,_) ->
-        !Oprint.out_type fmt ty
-#else
-    | Osig_type ((_,_,ty,_,_),_) ->
-        tydecl fmt ty
-    | Osig_value (_,ty,_) ->
-        !Oprint.out_type fmt ty
-#endif
 
   let ty ?(colorise = no_color) fmt id =
     option_iter id.ty

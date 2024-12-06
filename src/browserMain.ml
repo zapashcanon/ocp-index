@@ -5,8 +5,8 @@ open Lwt_react
 let rec eq l1 l2 = match l1, l2 with
   | [], [] -> true
   | [] , _::_  | _::_ , [] -> false
-  | {LibIndex. path = path1 ; name = name1 } :: t1 ,
-    {LibIndex. path = path2 ; name = name2 } :: t2 ->
+  | {LibIndex. path = path1 ; name = name1; _ } :: t1 ,
+    {LibIndex. path = path2 ; name = name2; _ } :: t2 ->
       path1 = path2 && name1 = name2 && eq t1 t2
 
 (* * Provide an association LibIndex.kind -> tag (= string) -> style
@@ -69,13 +69,8 @@ let load_style () =
     Lwt.return ()
     )
 
-#if OCAML_VERSION >= (4,08,0)
 let pp_open_tag fmt tag = Format.pp_open_stag fmt (Format.String_tag tag)
 let pp_close_tag = Format.pp_close_stag
-#else
-let pp_open_tag = Format.pp_open_tag
-let pp_close_tag = Format.pp_close_tag
-#endif
 
 (** Similar to {!LTerm_text.pp_with_style} but with no typing restriction. *)
 let pp_with_style to_style =
@@ -106,11 +101,11 @@ let sprint_answer ?(extra_info=false) cols colorise id =
   print " ";
   LibIndex.Format.path ~short:true ~colorise fmt id;
   begin match id with
-    | { LibIndex.ty = None }
+    | { LibIndex.ty = None; _ }
     | { LibIndex.kind = LibIndex.Module | LibIndex.ModuleType |
-                        LibIndex.Class | LibIndex.ClassType }
+                        LibIndex.Class | LibIndex.ClassType; _ }
       -> ()
-    | { LibIndex.ty = Some _ } ->
+    | { LibIndex.ty = Some _; _ } ->
         print "@ @[<h>" ;
         LibIndex.Format.ty ~colorise fmt id;
         print "@]" ;
@@ -463,7 +458,7 @@ let index_of_biggest_prefix s l =
 module SSet = Set.Make(String)
 let filter_completion l =
   let re_double_undescore = Re.(compile @@ str "__") in
-  let aux (s,l) ({LibIndex. name ; kind } as h) =
+  let aux (s,l) ({LibIndex. name ; kind; _ } as h) =
     match kind with
     | Module ->
         begin match Re.split re_double_undescore name with
@@ -479,8 +474,8 @@ let filter_completion l =
 (* Sort the list of completions. *)
 let sort_completion l =
   let cmp
-      {LibIndex. file = f1; loc_impl = l1}
-      {LibIndex. file = f2; loc_impl = l2} =
+      {LibIndex. file = f1; loc_impl = l1; _}
+      {LibIndex. file = f2; loc_impl = l2; _} =
     let name_of_file (LibIndex.Cmi s | Cmt s | Cmti s) = s in
     let i = String.compare (name_of_file f1) (name_of_file f2) in
     if i <> 0 then i
@@ -543,8 +538,8 @@ class completion_box options exit =
       set_completion_info response ;
       let completions =
         let suffix = function
-          | {LibIndex. kind = Module | ModuleType } -> "."
-          | {LibIndex. kind = Class | ClassType } -> "#"
+          | {LibIndex. kind = Module | ModuleType; _ } -> "."
+          | {LibIndex. kind = Class | ClassType; _ } -> "#"
           | _ -> ""
         in
         List.map
@@ -916,17 +911,18 @@ let run options () =
     fun () -> main options
   )
 
-let main_term : unit Cmdliner.Term.t * Cmdliner.Term.info =
+let main_term =
   let open Cmdliner in
   let doc = "Interactively completes and prints documentation." in
   let man = [`S "DESCRIPTION"; `P "See alt+h for help."] in
-  Term.(pure run
+  let term = Term.(const run
         $ IndexOptions.common_opts ~default_filter:[`T;`V;`E;`C;`M;`S;`K] ()
-        $ pure ()),
-  Term.info "ocp-browser" ~version:(Ocp_browser_version.version) ~doc ~man
+        $ const ())
+  in
+  let info = Cmd.info "ocp-browser" ~version:(Ocp_browser_version.version) ~doc ~man
+  in
+  Cmd.v info term
 
-let () =
-  match Cmdliner.Term.eval main_term
-  with
-  | `Error _ -> exit 1
-  | _ -> exit 0
+let exit_code = Cmdliner.Cmd.eval main_term
+
+let () = exit exit_code

@@ -85,14 +85,7 @@ end = struct
         Filename.basename
           (try Filename.chop_extension f with Invalid_argument _ -> f)
       in
-#if OCAML_VERSION >= (4,03,0)
       String.mapi (function 0 -> Char.uppercase_ascii | _ -> fun x -> x) s
-#elif OCAML_VERSION >= (4,02,0)
-      String.mapi (function 0 -> Char.uppercase | _ -> fun x -> x) s
-#else
-      s.[0] <- Char.uppercase s.[0];
-      s
-#endif
     in
     let modpath =
       match Dunextract.get_libname f with
@@ -133,7 +126,7 @@ end = struct
     let ns = Nstream.of_channel ch in
     let rec aux ns matches =
       match Nstream.next ns with
-      | Some ({Nstream.token=STRING s} as tok, ns) ->
+      | Some ({Nstream.token=STRING s; _} as tok, ns) ->
           let pos = Pos.Region.fst tok.Nstream.region in
           let orig_line, orig_col =
             Lexing.(pos.pos_lnum, pos.pos_cnum - pos.pos_bol + 1)
@@ -353,7 +346,7 @@ let () =
         Term.(const grep
                $ Args.pattern $ Args.files $ Args.color $ Args.strings $ Args.regexp)
     in
-    Cmd.eval_value cmd       
+    Cmd.eval_value cmd
   with
   | Ok (`Ok true) -> exit 0
   | Ok (`Ok false) -> exit 1

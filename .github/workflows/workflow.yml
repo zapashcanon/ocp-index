@@ -12,15 +12,10 @@ jobs:
         os:
           - ubuntu-latest
         ocaml-version:
+          - 5.2.0
           - 5.1.0~rc1
           - 5.0.0
           - 4.14.0
-          - 4.13.1
-          - 4.12.1
-          - 4.11.2
-          - 4.10.2
-          - 4.09.1
-          - 4.08.1
 
     runs-on: ${{ matrix.os }}
 
@@ -32,7 +27,7 @@ jobs:
         uses: actions/checkout@v2
 
       - run: echo | sh <(curl -sL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh) --dev
-      - run: sudo apt-get install bubblewrap
+      - run: sudo apt install bubblewrap
 
       - run: opam init --compiler ${{ matrix.ocaml-version }}
 

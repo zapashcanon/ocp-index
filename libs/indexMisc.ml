@@ -142,17 +142,6 @@ let find_build_dir path =
       else Some (path / dir)
   | Some _ -> Some path
 
-let string_split char str =
-  let rec aux pos =
-    try
-      let i = String.index_from str pos char in
-      String.sub str pos (i - pos) :: aux (succ i)
-    with Not_found | Invalid_argument _ ->
-        let l = String.length str in
-        [ String.sub str pos (l - pos) ]
-  in
-  aux 0
-
 let make_relative ?(path=Sys.getcwd()) file =
   if Filename.is_relative file then file
   else
@@ -165,7 +154,7 @@ let make_relative ?(path=Sys.getcwd()) file =
   in
   let sep = Filename.dir_sep.[0] in
   let d =
-    aux (string_split sep path) (string_split sep file)
+    aux (String.split_on_char sep path) (String.split_on_char sep file)
   in
   if d = [] then Filename.current_dir_name
   else String.concat Filename.dir_sep d
@@ -189,20 +178,6 @@ let project_root ?(path=Sys.getcwd()) () =
   match find path with
   | None -> None, None
   | Some (root, build) -> Some root, Some build
-
-let capitalize =
-#if OCAML_VERSION >= (4,03,0)
-    String.capitalize_ascii
-#else
-    String.capitalize
-#endif
-
-let lowercase =
-#if OCAML_VERSION >= (4,03,0)
-    String.lowercase_ascii
-#else
-    String.lowercase
-#endif
 
 let file_extension f =
   try let i = String.rindex f '.' in String.sub f (i+1) (String.length f - i - 1)

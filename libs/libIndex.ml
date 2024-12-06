@@ -63,7 +63,7 @@ let complete t ?filter:(f = fun _ -> true) query =
          (IndexTrie.sub t (Misc.string_to_key query)))
       f
   in
-  let file = function { file = Cmt f | Cmi f | Cmti f } -> f in
+  let file = function { file = Cmt f | Cmi f | Cmti f; _ } -> f in
   List.sort
     (fun i j ->
        let c = compare (file i) (file j) in
